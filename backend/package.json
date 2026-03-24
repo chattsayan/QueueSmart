@@ -1,0 +1,60 @@
+{
+  "name": "smart-queue-backend",
+  "version": "1.0.0",
+  "description": "Smart Queue Management System - Backend API",
+  "license": "ISC",
+  "author": "Sayan Chatterjee",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "test": "jest --coverage --detectOpenHandles",
+    "test:watch": "jest --watch",
+    "lint": "eslint src/**/*.js",
+    "lint:fix": "eslint src/**/*.js --fix",
+    "migrate": "node scripts/migrate.js",
+    "seed": "node scripts/seed.js"
+  },
+  "keywords": [
+    "queue",
+    "management",
+    "mongodb",
+    "express",
+    "nodejs"
+  ],
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "compression": "^1.8.1",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "express-mongo-sanitize": "^2.2.0",
+    "express-rate-limit": "^8.3.1",
+    "express-validator": "^7.3.1",
+    "helmet": "^8.1.0",
+    "hpp": "^0.2.3",
+    "joi": "^18.1.0",
+    "jsonwebtoken": "^9.0.3",
+    "moment-timezone": "^0.6.1",
+    "mongoose": "^9.3.1",
+    "morgan": "^1.10.1",
+    "node-cron": "^4.2.1",
+    "nodemailer": "^8.0.3",
+    "redis": "^5.11.0",
+    "socket.io": "^4.8.3",
+    "twilio": "^5.13.0",
+    "winston": "^3.19.0"
+  },
+  "devDependencies": {
+    "@faker-js/faker": "^10.3.0",
+    "eslint": "^10.1.0",
+    "jest": "^30.3.0",
+    "nodemon": "^3.1.14",
+    "superfast": "^0.2.5"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
+}
