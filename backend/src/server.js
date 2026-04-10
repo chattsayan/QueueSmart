@@ -16,9 +16,6 @@ const app = express();
 // Connect to the database
 connectDB();
 
-// Connect to redis
-connectRedis();
-
 // Trust proxy
 app.set("trust proxy", 1);
 
