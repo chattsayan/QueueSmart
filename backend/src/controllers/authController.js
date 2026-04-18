@@ -267,19 +267,135 @@ exports.changePassword = async (req, res, next) => {
 exports.forgotPassword = async (req, res, next) => {
   const { email } = req.body;
 
-  const user = await User.findOne({ email });
-
-  if (!user) {
+  if (!email) {
     return next(
       createError(
-        "User not found with that email.",
-        HTTPS_STATUS.NOT_FOUND,
-        ERROR_CODES.NOT_FOUND,
+        "Email is required.",
+        HTTPS_STATUS.BAD_REQUEST,
+        ERROR_CODES.VALIDATION_ERROR,
       ),
     );
   }
 
+  const user = await User.findOne({ email });
+
+  const genericResponse = () => {
+    res.status(HTTPS_STATUS.OK).json({
+      success: true,
+      message:
+        "If that user email is registered, a password reset link has been sent.",
+    });
+  };
+
+  if (!user) return genericResponse();
+
   // generate reset token and send email
-  const resetToken = user.getResetPasswordToken();
+  // const resetToken = user.getResetPasswordToken();
+  // await user.save({ validateBeforeSave: false });
+  const resetToken = crypto.randomBytes(32).toString("hex");
+
+  user.passwordResetToken = crypto
+    .createHash("sha256")
+    .update(resetToken)
+    .digest("hex");
+  user.passwordResetExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
   await user.save({ validateBeforeSave: false });
+
+  const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
+
+  logger.info(`Password reset requested for: ${email}`);
+
+  try {
+    await sendResetEmail({ email: user.email, name: user.firstName, resetUrl });
+
+    return res.status(HTTPS_STATUS.OK).json({
+      success: true,
+      message:
+        "If that user email is registered, a password reset link has been sent.",
+      // plain token visible in dev only - never in production
+      ...(process.env.NODE_ENV === "development" && { resetToken, resetUrl }),
+    });
+  } catch (emailErr) {
+    // email failed - clear the token so user can try again
+    user.passwordResetToken = undefined;
+    user.passwordResetExpires = undefined;
+    await user.save({ validateBeforeSave: false });
+
+    logger.error(`Reset email failed for ${email}: ${emailErr.message}`);
+
+    return next(
+      createError(
+        "Email could not be sent. Please try again later.",
+        HTTPS_STATUS.INTERNAL_SERVER_ERROR,
+        ERROR_CODES.INTERNAL_ERROR,
+      ),
+    );
+  }
+};
+
+// @desc    Reset Password
+// @route   POST /api/v1/auth/reset-password/:token
+// @access  Public
+exports.resetPassword = async (req, res, next) => {
+  const { token } = req.params;
+  const { password, confirmPassword } = req.body;
+
+  if (!password || !confirmPassword) {
+    return next(
+      createError(
+        "Password and confirm password are required.",
+        HTTPS_STATUS.BAD_REQUEST,
+        ERROR_CODES.VALIDATION_ERROR,
+      ),
+    );
+  }
+
+  if (password !== confirmPassword) {
+    return next(
+      createError(
+        "Password do not match.",
+        HTTPS_STATUS.BAD_REQUEST,
+        ERROR_CODES.VALIDATION_ERROR,
+      ),
+    );
+  }
+
+  if (password.length < 8) {
+    return next(
+      createError(
+        "Password must be at least 8 characters.",
+        HTTPS_STATUS.BAD_REQUEST,
+        ERROR_CODES.VALIDATION_ERROR,
+      ),
+    );
+  }
+
+  // Hash URL token to look up in DB
+  const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+
+  const user = await User.findOne({
+    passwordResetToken: hashedToken,
+    passwordResetExpires: { $gt: Date.now() },
+  }).select("+passwordResetToken +passwordResetExpires");
+
+  if (!user) {
+    return next(
+      createError(
+        "Reset token is Invalid or expired.",
+        HTTPS_STATUS.BAD_REQUEST,
+        ERROR_CODES.INVALID_TOKEN,
+      ),
+    );
+  }
+
+  // set new password
+  user.password = password;
+  user.passwordResetToken = undefined;
+  user.passwordResetExpires = undefined;
+  await user.save();
+
+  logger.info(`Password reset successful for: ${user.email}`);
+
+  // return fresh JWT so user is logged in immediately after resetting password
+  sendTokenResponse(user, HTTPS_STATUS.OK, res);
 };
