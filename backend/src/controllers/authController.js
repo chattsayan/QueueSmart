@@ -1,8 +1,9 @@
 const User = require("../models/User");
+const crypto = require("crypto");
+const jwt = require("jsonwebtoken");
 const { createError } = require("../middleware/errorHandler");
 const { HTTPS_STATUS, ERROR_CODES } = require("../utils/constants");
 const logger = require("../utils/logger");
-const { profile } = require("winston");
 
 const sendTokenResponse = (user, statusCode, res) => {
   const token = user.getSignedJwtToken();
@@ -256,7 +257,7 @@ exports.changePassword = async (req, res, next) => {
   user.password = newPassword;
   await user.save();
 
-  logger.info(`User Changed Password: ${user.email}`);
+  logger.info(`Password changed for user: ${user.email}`);
 
   sendTokenResponse(user, HTTPS_STATUS.OK, res);
 };
